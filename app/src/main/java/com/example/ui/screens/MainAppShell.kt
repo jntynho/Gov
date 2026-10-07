@@ -487,7 +487,7 @@ fun MainAppShell(viewModel: MainViewModel) {
                             onDismissRequest = { viewModel.dismissVideoError() },
                             modifier = Modifier.vaultTopGlow(glowColor = MaterialTheme.colorScheme.error),
                             shape = VaultDialogShape,
-                            containerColor = palette.cardBg,
+                            containerColor = palette.dialogBg,
                             icon = {
                                 Icon(
                                     Icons.Default.ErrorOutline,

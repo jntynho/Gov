@@ -11,7 +11,8 @@ open class GoonyThemePalette(
     open val textSecondary: Color,
     open val textMuted: Color,
     open val border: Color,
-    open val skeletonBg: Color
+    open val skeletonBg: Color,
+    open val dialogBg: Color = bg
 ) {
     class Dynamic(
         override val name: String,
@@ -22,8 +23,9 @@ open class GoonyThemePalette(
         override val textSecondary: Color,
         override val textMuted: Color,
         override val border: Color,
-        override val skeletonBg: Color
-    ) : GoonyThemePalette(name, bg, surface, cardBg, textPrimary, textSecondary, textMuted, border, skeletonBg)
+        override val skeletonBg: Color,
+        override val dialogBg: Color = bg
+    ) : GoonyThemePalette(name, bg, surface, cardBg, textPrimary, textSecondary, textMuted, border, skeletonBg, dialogBg)
 
     object Dark : GoonyThemePalette(
         name = "Dark",
@@ -34,7 +36,8 @@ open class GoonyThemePalette(
         textSecondary = Color(0xFFABABAF),
         textMuted = Color(0xFF7C7C80),
         border = Color(0x1AFFFFFF),
-        skeletonBg = Color(0xFF2A2A2C)
+        skeletonBg = Color(0xFF2A2A2C),
+        dialogBg = Color(0xFF242527)
     )
 
     object Amoled : GoonyThemePalette(
@@ -46,7 +49,8 @@ open class GoonyThemePalette(
         textSecondary = Color(0xFFCCCCCC),
         textMuted = Color(0xFF888888),
         border = Color(0x33FFFFFF),
-        skeletonBg = Color(0xFF1B1B20)
+        skeletonBg = Color(0xFF1B1B20),
+        dialogBg = Color(0xFF111114)
     )
 
     object Light : GoonyThemePalette(
@@ -58,7 +62,8 @@ open class GoonyThemePalette(
         textSecondary = Color(0xFF475569),
         textMuted = Color(0xFF64748B),
         border = Color(0x1F0F172A),
-        skeletonBg = Color(0xFFE2E8F0)
+        skeletonBg = Color(0xFFE2E8F0),
+        dialogBg = Color(0xFFF1F5F9)
     )
 
     companion object {

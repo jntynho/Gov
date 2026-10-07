@@ -43,7 +43,7 @@ fun StashBatchSaveProgressDialog(
         onDismissRequest = { /* Non-dismissable on touch outside */ },
         modifier = Modifier.vaultTopGlow(),
         shape = VaultDialogShape,
-        containerColor = palette.cardBg,
+        containerColor = palette.dialogBg,
         title = {
             Text(
                 text = "Saving Scenes...",
@@ -154,7 +154,7 @@ fun StashBlockStudioDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.vaultTopGlow(glowColor = MaterialTheme.colorScheme.error),
         shape = VaultDialogShape,
-        containerColor = palette.cardBg,
+        containerColor = palette.dialogBg,
         icon = {
             Surface(
                 shape = CircleShape,

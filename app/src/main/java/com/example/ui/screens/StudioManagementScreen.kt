@@ -469,7 +469,7 @@ fun StudioManagementScreen(
             onDismissRequest = { showAddDialog = false },
             modifier = Modifier.vaultTopGlow(),
             shape = VaultDialogShape,
-            containerColor = palette.cardBg,
+            containerColor = palette.dialogBg,
             title = {
                 Text(
                     text = "Add Studio",
@@ -489,6 +489,10 @@ fun StudioManagementScreen(
                         onValueChange = { name = it },
                         label = { Text("Studio Name *") },
                         isError = isDuplicate,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = palette.cardBg,
+                            unfocusedContainerColor = palette.cardBg
+                        ),
                         supportingText = {
                             if (isDuplicate) {
                                 Text(
@@ -508,6 +512,10 @@ fun StudioManagementScreen(
                         value = logoUrl,
                         onValueChange = { logoUrl = it },
                         label = { Text("Logo Image URL") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = palette.cardBg,
+                            unfocusedContainerColor = palette.cardBg
+                        ),
                         shape = RoundedCornerShape(32.dp),
                         modifier = Modifier
                             .fillMaxWidth()

@@ -72,17 +72,17 @@ object PlayerFactory {
         val renderersFactory = DefaultRenderersFactory(context)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
-            .setAllowedVideoJoiningTimeMs(4000)
+            .setAllowedVideoJoiningTimeMs(6000)
 
-        // Viewport-aware track selector for GPU and battery optimization
-        val metrics = context.resources.displayMetrics
+        // Codec and track selector with VR / 4K / 8K support (no artificial size constraints & exceed capabilities enabled for high-res VR/4096p)
         val trackSelector = DefaultTrackSelector(context).apply {
             parameters = buildUponParameters()
-                .setMaxVideoSize(
-                    metrics.widthPixels.coerceAtLeast(1920),
-                    metrics.heightPixels.coerceAtLeast(1080)
-                )
-                .setViewportSize(metrics.widthPixels, metrics.heightPixels, false)
+                .clearVideoSizeConstraints()
+                .setExceedRendererCapabilitiesIfNecessary(true)
+                .setExceedVideoConstraintsIfNecessary(true)
+                .setAllowVideoMixedMimeTypeAdaptiveness(true)
+                .setAllowVideoNonSeamlessAdaptiveness(true)
+                .setAllowMultipleAdaptiveSelections(true)
                 .build()
         }
 

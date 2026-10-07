@@ -1,5 +1,8 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,7 +27,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -39,6 +44,7 @@ import com.example.ui.theme.LocalBetaTestPrivacy
 import com.example.ui.theme.LocalVaultPalette
 import com.example.ui.theme.privacyImageBlur
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @Composable
 fun ActorDetailsDialog(
@@ -67,6 +73,13 @@ fun ActorDetailsDialog(
     var fetchedImages by remember(actor.id) { mutableStateOf<List<String>>(initialActorImages) }
     var hasFetchedRemoteImages by remember(actor.id) { mutableStateOf(false) }
     var isFetchingImages by remember(actor.id) { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
+    var resetRotationTarget by remember { mutableFloatStateOf(0f) }
+    val resetRotation by animateFloatAsState(
+        targetValue = resetRotationTarget,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "reset_spin"
+    )
 
     LaunchedEffect(actor.id, isAdjustMode) {
         if (isAdjustMode && !hasFetchedRemoteImages && stashDbApiKey.isNotBlank()) {
@@ -105,7 +118,7 @@ fun ActorDetailsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.vaultTopGlow(),
-        containerColor = palette.cardBg,
+        containerColor = palette.dialogBg,
         shape = VaultDialogShape,
         title = {
             if (!isAdjustMode) {
@@ -164,14 +177,28 @@ fun ActorDetailsDialog(
                             style = MaterialTheme.typography.titleLarge
                         )
                     }
-                    TextButton(
+                    val isModified = posX != 50f || posY != 50f || zoom != 1.0f || (selectedImageUrl != actor.imageUrl)
+                    IconButton(
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            resetRotationTarget -= 360f
                             posX = 50f
                             posY = 50f
                             zoom = 1.0f
-                        }
+                            selectedImageUrl = actor.imageUrl
+                        },
+                        modifier = Modifier.testTag("adjust_photo_reset_button")
                     ) {
-                        Text("Reset", style = MaterialTheme.typography.labelLarge)
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_action_reset),
+                            contentDescription = "Reset",
+                            tint = if (isModified) MaterialTheme.colorScheme.primary else palette.textPrimary.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer {
+                                    rotationZ = resetRotation
+                                }
+                        )
                     }
                 }
             }
@@ -180,28 +207,24 @@ fun ActorDetailsDialog(
             if (!isAdjustMode) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Static / Unchangeable Name Field
-                    OutlinedTextField(
+                    SceneInputField(
                         value = actor.name,
                         onValueChange = {},
+                        placeholder = "Name",
                         readOnly = true,
-                        singleLine = true,
-                        label = { Text("Name") },
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-                        shape = RoundedCornerShape(32.dp),
+                        backgroundColor = palette.cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("actor_name_static_input")
                     )
 
                     // Static / Unchangeable Image URL Field
-                    OutlinedTextField(
+                    SceneInputField(
                         value = actor.imageUrl,
                         onValueChange = {},
+                        placeholder = "Image URL",
                         readOnly = true,
-                        singleLine = true,
-                        label = { Text("Image URL") },
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-                        shape = RoundedCornerShape(32.dp),
+                        backgroundColor = palette.cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("actor_image_static_input")

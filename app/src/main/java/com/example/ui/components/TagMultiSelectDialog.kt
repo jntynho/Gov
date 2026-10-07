@@ -64,60 +64,37 @@ fun TagMultiSelectDialog(
                     .heightIn(max = 380.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Sleek Compact Fully-Rounded Search Input
-                BasicTextField(
+                // Sleek Compact Fully-Rounded Search Input matching Add Scene style
+                SceneInputField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    singleLine = true,
-                    textStyle = LocalTextStyle.current.copy(
-                        color = palette.textPrimary,
-                        fontSize = 14.sp
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(palette.bg)
-                        .border(1.dp, palette.border, RoundedCornerShape(22.dp)),
-                    decorationBox = { innerTextField ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_app_search),
-                                contentDescription = null,
-                                tint = accent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(modifier = Modifier.weight(1f)) {
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        text = "Search...",
-                                        color = palette.textMuted,
-                                        fontSize = 14.sp
-                                    )
-                                }
-                                innerTextField()
-                            }
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(
-                                    onClick = { searchQuery = "" },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Clear",
-                                        tint = palette.textMuted,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
+                    placeholder = "Search...",
+                    backgroundColor = palette.cardBg,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_app_search),
+                            contentDescription = null,
+                            tint = accent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(
+                                onClick = { searchQuery = "" },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = palette.textMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
                         }
-                    }
+                    } else null,
+                    testTag = "tag_dialog_search_input"
                 )
 
                 // List of items with Circular Selection Indicators
@@ -214,6 +191,6 @@ fun TagMultiSelectDialog(
             }
         },
         shape = VaultDialogShape,
-        containerColor = palette.cardBg
+        containerColor = palette.dialogBg
     )
 }

@@ -75,7 +75,7 @@ fun StudioDetailsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.vaultTopGlow(),
-        containerColor = palette.cardBg,
+        containerColor = palette.dialogBg,
         shape = VaultDialogShape,
         title = {
             if (!isAdjustMode) {
@@ -139,28 +139,24 @@ fun StudioDetailsDialog(
             if (!isAdjustMode) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Static / Unchangeable Name Field
-                    OutlinedTextField(
+                    SceneInputField(
                         value = studio.name,
                         onValueChange = {},
+                        placeholder = "Name",
                         readOnly = true,
-                        singleLine = true,
-                        label = { Text("Name") },
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-                        shape = RoundedCornerShape(32.dp),
+                        backgroundColor = palette.cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("studio_name_static_input")
                     )
 
                     // Static / Unchangeable Image URL Field
-                    OutlinedTextField(
+                    SceneInputField(
                         value = studio.logoUrl ?: "",
                         onValueChange = {},
+                        placeholder = "Image URL",
                         readOnly = true,
-                        singleLine = true,
-                        label = { Text("Image URL") },
-                        textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
-                        shape = RoundedCornerShape(32.dp),
+                        backgroundColor = palette.cardBg,
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("studio_image_static_input")

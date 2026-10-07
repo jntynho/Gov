@@ -72,6 +72,7 @@ fun GoonyTheme(
     val animatedTextMuted by animateColorAsState(targetPalette.textMuted, animSpec, label = "theme_textMuted")
     val animatedBorder by animateColorAsState(targetPalette.border, animSpec, label = "theme_border")
     val animatedSkeletonBg by animateColorAsState(targetPalette.skeletonBg, animSpec, label = "theme_skeletonBg")
+    val animatedDialogBg by animateColorAsState(targetPalette.dialogBg, animSpec, label = "theme_dialogBg")
 
     val animatedPalette = remember(
         targetPalette.name,
@@ -82,7 +83,8 @@ fun GoonyTheme(
         animatedTextSecondary,
         animatedTextMuted,
         animatedBorder,
-        animatedSkeletonBg
+        animatedSkeletonBg,
+        animatedDialogBg
     ) {
         GoonyThemePalette.Dynamic(
             name = targetPalette.name,
@@ -93,7 +95,8 @@ fun GoonyTheme(
             textSecondary = animatedTextSecondary,
             textMuted = animatedTextMuted,
             border = animatedBorder,
-            skeletonBg = animatedSkeletonBg
+            skeletonBg = animatedSkeletonBg,
+            dialogBg = animatedDialogBg
         )
     }
 

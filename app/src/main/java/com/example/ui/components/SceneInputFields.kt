@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -39,12 +40,16 @@ fun SceneInputField(
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
+    backgroundColor: Color = Color.Unspecified,
     testTag: String = ""
 ) {
     val palette = LocalVaultPalette.current
     val accent = LocalAccentColor.current
     var isFocused by remember { mutableStateOf(false) }
+
+    val resolvedBg = if (backgroundColor != Color.Unspecified) backgroundColor else palette.cardBg
 
     BasicTextField(
         value = value,
@@ -60,7 +65,7 @@ fun SceneInputField(
         modifier = modifier
             .height(48.dp)
             .clip(RoundedCornerShape(24.dp))
-            .background(palette.cardBg)
+            .background(resolvedBg)
             .border(
                 width = if (isFocused) 1.5.dp else 1.dp,
                 color = if (isFocused) accent else palette.border,
@@ -72,9 +77,13 @@ fun SceneInputField(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 16.dp, end = 6.dp),
+                    .padding(start = if (leadingIcon != null) 12.dp else 16.dp, end = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (leadingIcon != null) {
+                    leadingIcon()
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
                 Box(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.CenterStart

@@ -47,7 +47,7 @@ fun SettingsFilterSection(
             onDismissRequest = { showClearConfirmDialog = false },
             modifier = Modifier.vaultTopGlow(glowColor = MaterialTheme.colorScheme.error),
             shape = VaultDialogShape,
-            containerColor = palette.cardBg,
+            containerColor = palette.dialogBg,
             title = {
                 Text(
                     text = "Clear All Blocked Studios?",

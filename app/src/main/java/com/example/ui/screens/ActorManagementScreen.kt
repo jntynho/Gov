@@ -487,7 +487,7 @@ fun ActorManagementScreen(
             onDismissRequest = { showAddDialog = false },
             modifier = Modifier.vaultTopGlow(),
             shape = VaultDialogShape,
-            containerColor = palette.cardBg,
+            containerColor = palette.dialogBg,
             title = {
                 Text(
                     text = "Add Actor",
@@ -507,6 +507,10 @@ fun ActorManagementScreen(
                         onValueChange = { name = it },
                         label = { Text("Actor Name *") },
                         isError = isDuplicate,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = palette.cardBg,
+                            unfocusedContainerColor = palette.cardBg
+                        ),
                         supportingText = {
                             if (isDuplicate) {
                                 Text(
@@ -526,6 +530,10 @@ fun ActorManagementScreen(
                         value = imageUrl,
                         onValueChange = { imageUrl = it },
                         label = { Text("Profile Image URL") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = palette.cardBg,
+                            unfocusedContainerColor = palette.cardBg
+                        ),
                         shape = RoundedCornerShape(32.dp),
                         modifier = Modifier.fillMaxWidth()
                     )

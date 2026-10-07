@@ -39,6 +39,8 @@ fun PlayerControlsOverlay(
     duration: Long,
     isBuffering: Boolean = false,
     is4kOrHdr: Boolean = false,
+    isVrMode: Boolean = false,
+    onToggleVrMode: (() -> Unit)? = null,
     onBack: () -> Unit,
     onRewind10s: () -> Unit,
     onTogglePlayPause: () -> Unit,
@@ -148,6 +150,38 @@ fun PlayerControlsOverlay(
                 }
             }
 
+            // VR 360° Active Indicator Badge
+            if (isVrMode) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color(0xFF0F172A).copy(alpha = 0.85f),
+                    border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.65f)),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = if (isFullscreen) 54.dp else 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_player_vr),
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = "VR 360° Active",
+                            color = Color.White,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
             // Center 3-Button Controls (10s Rewind, Play/Pause, 10s Forward) - Hidden during Buffering
             AnimatedVisibility(
                 visible = !isBuffering,
@@ -233,6 +267,29 @@ fun PlayerControlsOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(if (isFullscreen) 8.dp else 6.dp)
                     ) {
+                        // VR 360° Magic Window Button
+                        if (onToggleVrMode != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(if (isFullscreen) 32.dp else 28.dp)
+                                    .background(
+                                        if (isVrMode) Color(0xFF38BDF8).copy(alpha = 0.25f) else Color.Transparent,
+                                        CircleShape
+                                    )
+                                    .clip(CircleShape)
+                                    .clickable(onClick = onToggleVrMode)
+                                    .testTag(if (isFullscreen) "vr_player_button" else "vr_inline_button"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_player_vr),
+                                    contentDescription = "VR 360° View",
+                                    tint = if (isVrMode) Color(0xFF38BDF8) else Color.White,
+                                    modifier = Modifier.size(if (isFullscreen) 21.dp else 18.dp)
+                                )
+                            }
+                        }
+
                         // Pop-Up Window / PiP Button
                         IconButton(
                             onClick = onEnterPip,

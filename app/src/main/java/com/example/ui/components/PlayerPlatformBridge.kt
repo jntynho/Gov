@@ -285,7 +285,27 @@ fun BindPlayerStateListener(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                onError("Playback Error (${error.errorCodeName})", error.message ?: "Failed to stream or decode video.")
+                val exoEx = error as? androidx.media3.exoplayer.ExoPlaybackException
+                val format = exoEx?.rendererFormat ?: player.videoFormat
+                val width = format?.width ?: 0
+                val height = format?.height ?: 0
+                val resString = if (width > 0 && height > 0) " (${width}×${height})" else ""
+
+                if (error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+                    error.message?.contains("NO_EXCEEDS_CAPABILITIES", ignoreCase = true) == true ||
+                    error.message?.contains("DECODER_INIT_FAILED", ignoreCase = true) == true
+                ) {
+                    val is8kOrUltra = width >= 4000 || height >= 2400
+                    val title = if (is8kOrUltra) "8K Video Exceeds Device Limits$resString" else "Video Codec Unsupported$resString"
+                    val desc = if (is8kOrUltra) {
+                        "This video's 8K resolution$resString exceeds this device's hardware decoder capability (max 4K). Tap 'Open External' to play with VLC or DeoVR."
+                    } else {
+                        "This device's hardware decoder does not support this video's codec or resolution$resString. Tap 'Open External' to play with VLC or MX Player."
+                    }
+                    onError(title, desc)
+                } else {
+                    onError("Playback Error (${error.errorCodeName})", error.message ?: "Failed to stream or decode video.")
+                }
             }
         }
 

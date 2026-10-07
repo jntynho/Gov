@@ -41,7 +41,7 @@ fun PlayerErrorDialog(
                 .widthIn(max = 440.dp)
                 .vaultTopGlow(glowColor = MaterialTheme.colorScheme.error),
             shape = VaultDialogShape,
-            colors = CardDefaults.cardColors(containerColor = palette.cardBg)
+            colors = CardDefaults.cardColors(containerColor = palette.dialogBg)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),

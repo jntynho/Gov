@@ -2,12 +2,16 @@ package com.example.ui.components
 
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
+import android.view.Surface
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,11 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.util.Consumer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
+import androidx.media3.exoplayer.video.spherical.SphericalGLSurfaceView
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.R
@@ -74,8 +81,12 @@ fun CoreMediaPlayer(
         onDispose { fallbackPlayer?.release() }
     }
 
-    val primaryQuality = remember(qualities) {
-        qualities.firstOrNull { it.isDefault } ?: qualities.firstOrNull()
+    var activeQualityIndex by remember(qualities) {
+        val defaultIdx = qualities.indexOfFirst { it.isDefault }
+        mutableIntStateOf(if (defaultIdx >= 0) defaultIdx else 0)
+    }
+    val primaryQuality = remember(qualities, activeQualityIndex) {
+        qualities.getOrNull(activeQualityIndex) ?: qualities.firstOrNull()
     }
 
     var showControls by remember { mutableStateOf(true) }
@@ -118,6 +129,9 @@ fun CoreMediaPlayer(
     var isInPipMode by remember {
         mutableStateOf(activity?.isInPictureInPictureMode == true)
     }
+
+    var isVrMode by remember { mutableStateOf(false) }
+    var sphericalViewRef by remember { mutableStateOf<SphericalGLSurfaceView?>(null) }
 
     DisposableEffect(activity) {
         val listener = Consumer<PictureInPictureModeChangedInfo> { info ->
@@ -166,6 +180,23 @@ fun CoreMediaPlayer(
     val lifecycleOwner = LocalLifecycleOwner.current
     BindPlayerLifecycle(lifecycleOwner, activeExoPlayer, activity)
 
+    // Handle lifecycle pause/resume specifically for Spherical GL surface
+    DisposableEffect(lifecycleOwner, isVrMode) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (isVrMode) {
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> sphericalViewRef?.onResume()
+                    Lifecycle.Event.ON_PAUSE -> sphericalViewRef?.onPause()
+                    else -> Unit
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val activeHeaders = remember(primaryQuality, defaultHeaders) {
         val streamHeaders = primaryQuality?.headers ?: emptyMap()
         defaultHeaders + streamHeaders
@@ -184,8 +215,17 @@ fun CoreMediaPlayer(
         },
         onError = { title, details ->
             isBuffering = false
-            errorMessage = title
-            errorDetails = details
+            if (activeQualityIndex < qualities.lastIndex &&
+                (title.contains("Codec", ignoreCase = true) || title.contains("Decoder", ignoreCase = true) || title.contains("Limits", ignoreCase = true) || title.contains("Unsupported", ignoreCase = true))
+            ) {
+                val nextIdx = activeQualityIndex + 1
+                val nextQuality = qualities[nextIdx]
+                Toast.makeText(context, "8K exceeds hardware, trying ${nextQuality.quality}...", Toast.LENGTH_SHORT).show()
+                activeQualityIndex = nextIdx
+            } else {
+                errorMessage = title
+                errorDetails = details
+            }
         },
         onClearError = {
             errorMessage = null
@@ -229,103 +269,171 @@ fun CoreMediaPlayer(
         }
     )
 
+    val playerGesturesModifier = if (!isVrMode) {
+        Modifier.playerTouchGestures(
+            duration = duration,
+            enableGestures = enableGestures,
+            currentPositionProvider = { activeExoPlayer.currentPosition },
+            audioManager = audioManager,
+            maxAudioVolume = maxAudioVolume,
+            activity = activity,
+            isScrubbing = isScrubbing,
+            onGestureSeekingChanged = { seeking ->
+                isGestureSeeking = seeking
+                activeExoPlayer.setSeekParameters(if (seeking) SeekParameters.CLOSEST_SYNC else SeekParameters.EXACT)
+            },
+            onSeekLive = { target ->
+                currentPos = target
+                lastSeekTime = System.currentTimeMillis()
+            },
+            onSeekFinal = { target ->
+                currentPos = target
+                lastSeekTime = System.currentTimeMillis()
+                isBuffering = true
+                activeExoPlayer.setSeekParameters(SeekParameters.EXACT)
+                activeExoPlayer.seekTo(target)
+            },
+            onVolumeChanged = { percent ->
+                gestureVolumePercent = percent
+                if (percent == null) {
+                    volumeHideJob = coroutineScope.launch {
+                        delay(800)
+                        gestureVolumePercent = null
+                    }
+                } else {
+                    volumeHideJob?.cancel()
+                }
+            },
+            onBrightnessChanged = { percent ->
+                gestureBrightnessPercent = percent
+                if (percent == null) {
+                    brightnessHideJob = coroutineScope.launch {
+                        delay(800)
+                        gestureBrightnessPercent = null
+                    }
+                } else {
+                    brightnessHideJob?.cancel()
+                }
+            },
+            onDoubleTap = { isForward ->
+                if (isForward) {
+                    val target = (activeExoPlayer.currentPosition + 10000).coerceAtMost(duration).coerceAtLeast(0L)
+                    isBuffering = true
+                    activeExoPlayer.seekTo(target)
+                    currentPos = target
+                } else {
+                    val target = (activeExoPlayer.currentPosition - 10000).coerceAtLeast(0L)
+                    isBuffering = true
+                    activeExoPlayer.seekTo(target)
+                    currentPos = target
+                }
+                lastSeekTime = System.currentTimeMillis()
+            },
+            onSingleTap = {
+                showControls = !showControls
+            }
+        )
+    } else {
+        Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null
+        ) {
+            showControls = !showControls
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .playerTouchGestures(
-                duration = duration,
-                enableGestures = enableGestures,
-                currentPositionProvider = { activeExoPlayer.currentPosition },
-                audioManager = audioManager,
-                maxAudioVolume = maxAudioVolume,
-                activity = activity,
-                isScrubbing = isScrubbing,
-                onGestureSeekingChanged = { seeking ->
-                    isGestureSeeking = seeking
-                    activeExoPlayer.setSeekParameters(if (seeking) SeekParameters.CLOSEST_SYNC else SeekParameters.EXACT)
-                },
-                onSeekLive = { target ->
-                    currentPos = target
-                    lastSeekTime = System.currentTimeMillis()
-                },
-                onSeekFinal = { target ->
-                    currentPos = target
-                    lastSeekTime = System.currentTimeMillis()
-                    isBuffering = true
-                    activeExoPlayer.setSeekParameters(SeekParameters.EXACT)
-                    activeExoPlayer.seekTo(target)
-                },
-                onVolumeChanged = { percent ->
-                    gestureVolumePercent = percent
-                    if (percent == null) {
-                        volumeHideJob = coroutineScope.launch {
-                            delay(800)
-                            gestureVolumePercent = null
-                        }
-                    } else {
-                        volumeHideJob?.cancel()
-                    }
-                },
-                onBrightnessChanged = { percent ->
-                    gestureBrightnessPercent = percent
-                    if (percent == null) {
-                        brightnessHideJob = coroutineScope.launch {
-                            delay(800)
-                            gestureBrightnessPercent = null
-                        }
-                    } else {
-                        brightnessHideJob?.cancel()
-                    }
-                },
-                onDoubleTap = { isForward ->
-                    if (isForward) {
-                        val target = (activeExoPlayer.currentPosition + 10000).coerceAtMost(duration).coerceAtLeast(0L)
-                        isBuffering = true
-                        activeExoPlayer.seekTo(target)
-                        currentPos = target
-                    } else {
-                        val target = (activeExoPlayer.currentPosition - 10000).coerceAtLeast(0L)
-                        isBuffering = true
-                        activeExoPlayer.seekTo(target)
-                        currentPos = target
-                    }
-                    lastSeekTime = System.currentTimeMillis()
-                },
-                onSingleTap = {
-                    showControls = !showControls
-                }
-            )
+            .then(playerGesturesModifier)
             .testTag(if (isFullscreen) "video_player_overlay" else "inline_video_player")
     ) {
-        // Surface with Safe Lifecycle Detachment
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = activeExoPlayer
-                    useController = false
-                    keepScreenOn = true
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                }
-            },
-            update = { playerView ->
-                if (playerView.player != activeExoPlayer) {
-                    playerView.player = activeExoPlayer
-                }
-                playerView.keepScreenOn = true
-            },
-            onRelease = { playerView ->
-                playerView.player = null
-            },
-            onReset = { playerView ->
-                playerView.player = null
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        if (isVrMode) {
+            // High-Performance Monoscopic & Stereo 360° / 180° Spherical GL Surface (Gyroscope & Touch Dragging)
+            AndroidView(
+                factory = { ctx ->
+                    SphericalGLSurfaceView(ctx).apply {
+                        val stereoMode = activeExoPlayer.videoFormat?.stereoMode
+                        if (stereoMode != null && stereoMode != androidx.media3.common.Format.NO_VALUE) {
+                            setDefaultStereoMode(stereoMode)
+                        } else {
+                            setDefaultStereoMode(C.STEREO_MODE_MONO)
+                        }
+                        setUseSensorRotation(true)
+                        addVideoSurfaceListener(object : SphericalGLSurfaceView.VideoSurfaceListener {
+                            override fun onVideoSurfaceCreated(surface: Surface) {
+                                activeExoPlayer.setVideoSurface(surface)
+                                if (activeExoPlayer.playbackState == androidx.media3.common.Player.STATE_READY) {
+                                    activeExoPlayer.play()
+                                }
+                            }
+                            override fun onVideoSurfaceDestroyed(surface: Surface) {
+                                // Keep surface reference intact during quick transitions
+                            }
+                        })
+                        activeExoPlayer.setVideoFrameMetadataListener(videoFrameMetadataListener)
+                        activeExoPlayer.setCameraMotionListener(cameraMotionListener)
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        sphericalViewRef = this
+                        onResume()
+                    }
+                },
+                update = { sphericalView ->
+                    sphericalViewRef = sphericalView
+                    val stereoMode = activeExoPlayer.videoFormat?.stereoMode
+                    if (stereoMode != null && stereoMode != androidx.media3.common.Format.NO_VALUE) {
+                        sphericalView.setDefaultStereoMode(stereoMode)
+                    }
+                    sphericalView.onResume()
+                },
+                onRelease = { sphericalView ->
+                    sphericalView.onPause()
+                    activeExoPlayer.clearVideoFrameMetadataListener(sphericalView.videoFrameMetadataListener)
+                    activeExoPlayer.clearCameraMotionListener(sphericalView.cameraMotionListener)
+                    sphericalViewRef = null
+                },
+                onReset = { sphericalView ->
+                    sphericalView.onPause()
+                    activeExoPlayer.clearVideoFrameMetadataListener(sphericalView.videoFrameMetadataListener)
+                    activeExoPlayer.clearCameraMotionListener(sphericalView.cameraMotionListener)
+                    sphericalViewRef = null
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            // Standard 2D Surface with Safe Lifecycle Detachment
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = activeExoPlayer
+                        useController = false
+                        keepScreenOn = true
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                update = { playerView ->
+                    if (playerView.player != activeExoPlayer) {
+                        playerView.player = activeExoPlayer
+                    }
+                    playerView.keepScreenOn = true
+                },
+                onRelease = { playerView ->
+                    playerView.player = null
+                },
+                onReset = { playerView ->
+                    playerView.player = null
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         // Buffering Animation - Prominent centered Lottie loader
         if (isBuffering && errorMessage == null) {
@@ -345,6 +453,9 @@ fun CoreMediaPlayer(
                     errorMessage = null
                     errorDetails = null
                     isBuffering = true
+                    if (isVrMode) {
+                        isVrMode = false // Graceful fallback to 2D view on decoder failure
+                    }
                     activeExoPlayer.prepare()
                     activeExoPlayer.play()
                 },
@@ -389,6 +500,14 @@ fun CoreMediaPlayer(
             duration = duration,
             isBuffering = isBuffering,
             is4kOrHdr = isRealHdrStream,
+            isVrMode = isVrMode,
+            onToggleVrMode = {
+                val nextMode = !isVrMode
+                if (activeExoPlayer.isPlaying) {
+                    activeExoPlayer.pause()
+                }
+                isVrMode = nextMode
+            },
             onBack = handleBackAction,
             onRewind10s = {
                 if (duration > 0 && duration != C.TIME_UNSET) {
