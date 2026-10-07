@@ -11,12 +11,15 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -132,6 +135,18 @@ fun CoreMediaPlayer(
 
     var isVrMode by remember { mutableStateOf(false) }
     var sphericalViewRef by remember { mutableStateOf<SphericalGLSurfaceView?>(null) }
+    var vrStereoMode by remember(primaryQuality?.url) {
+        val url = primaryQuality?.url?.lowercase() ?: ""
+        val isSbs = url.contains("180") || url.contains("sbs") || url.contains("half-sbs") || title.lowercase().contains("180") || title.lowercase().contains("sbs")
+        mutableIntStateOf(if (isSbs) C.STEREO_MODE_LEFT_RIGHT else C.STEREO_MODE_MONO)
+    }
+
+    LaunchedEffect(activeExoPlayer.videoFormat) {
+        val formatStereo = activeExoPlayer.videoFormat?.stereoMode
+        if (formatStereo != null && formatStereo != androidx.media3.common.Format.NO_VALUE && formatStereo != C.STEREO_MODE_MONO) {
+            vrStereoMode = formatStereo
+        }
+    }
 
     DisposableEffect(activity) {
         val listener = Consumer<PictureInPictureModeChangedInfo> { info ->
@@ -179,23 +194,6 @@ fun CoreMediaPlayer(
     // Lifecycle binding (Preserving PiP playback)
     val lifecycleOwner = LocalLifecycleOwner.current
     BindPlayerLifecycle(lifecycleOwner, activeExoPlayer, activity)
-
-    // Handle lifecycle pause/resume specifically for Spherical GL surface
-    DisposableEffect(lifecycleOwner, isVrMode) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (isVrMode) {
-                when (event) {
-                    Lifecycle.Event.ON_RESUME -> sphericalViewRef?.onResume()
-                    Lifecycle.Event.ON_PAUSE -> sphericalViewRef?.onPause()
-                    else -> Unit
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
 
     val activeHeaders = remember(primaryQuality, defaultHeaders) {
         val streamHeaders = primaryQuality?.headers ?: emptyMap()
@@ -334,11 +332,31 @@ fun CoreMediaPlayer(
             }
         )
     } else {
-        Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
-        ) {
-            showControls = !showControls
+        Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val startPos = down.position
+                val startTime = System.currentTimeMillis()
+                var hasDragged = false
+
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (change.pressed) {
+                        val dist = (change.position - startPos).getDistance()
+                        if (dist > 14f) {
+                            hasDragged = true
+                        }
+                    } else {
+                        val elapsed = System.currentTimeMillis() - startTime
+                        val dist = (change.position - startPos).getDistance()
+                        if (!hasDragged && dist < 14f && elapsed < 320L) {
+                            showControls = !showControls
+                        }
+                        break
+                    }
+                }
+            }
         }
     }
 
@@ -354,12 +372,7 @@ fun CoreMediaPlayer(
             AndroidView(
                 factory = { ctx ->
                     SphericalGLSurfaceView(ctx).apply {
-                        val stereoMode = activeExoPlayer.videoFormat?.stereoMode
-                        if (stereoMode != null && stereoMode != androidx.media3.common.Format.NO_VALUE) {
-                            setDefaultStereoMode(stereoMode)
-                        } else {
-                            setDefaultStereoMode(C.STEREO_MODE_MONO)
-                        }
+                        setDefaultStereoMode(vrStereoMode)
                         setUseSensorRotation(true)
                         addVideoSurfaceListener(object : SphericalGLSurfaceView.VideoSurfaceListener {
                             override fun onVideoSurfaceCreated(surface: Surface) {
@@ -384,20 +397,19 @@ fun CoreMediaPlayer(
                 },
                 update = { sphericalView ->
                     sphericalViewRef = sphericalView
-                    val stereoMode = activeExoPlayer.videoFormat?.stereoMode
-                    if (stereoMode != null && stereoMode != androidx.media3.common.Format.NO_VALUE) {
-                        sphericalView.setDefaultStereoMode(stereoMode)
-                    }
+                    sphericalView.setDefaultStereoMode(vrStereoMode)
                     sphericalView.onResume()
                 },
                 onRelease = { sphericalView ->
                     sphericalView.onPause()
+                    activeExoPlayer.setVideoSurface(null)
                     activeExoPlayer.clearVideoFrameMetadataListener(sphericalView.videoFrameMetadataListener)
                     activeExoPlayer.clearCameraMotionListener(sphericalView.cameraMotionListener)
                     sphericalViewRef = null
                 },
                 onReset = { sphericalView ->
                     sphericalView.onPause()
+                    activeExoPlayer.setVideoSurface(null)
                     activeExoPlayer.clearVideoFrameMetadataListener(sphericalView.videoFrameMetadataListener)
                     activeExoPlayer.clearCameraMotionListener(sphericalView.cameraMotionListener)
                     sphericalViewRef = null
@@ -501,12 +513,16 @@ fun CoreMediaPlayer(
             isBuffering = isBuffering,
             is4kOrHdr = isRealHdrStream,
             isVrMode = isVrMode,
+            vrStereoMode = vrStereoMode,
             onToggleVrMode = {
-                val nextMode = !isVrMode
-                if (activeExoPlayer.isPlaying) {
-                    activeExoPlayer.pause()
+                isVrMode = !isVrMode
+            },
+            onCycleVrStereoMode = {
+                vrStereoMode = when (vrStereoMode) {
+                    C.STEREO_MODE_MONO -> C.STEREO_MODE_LEFT_RIGHT
+                    C.STEREO_MODE_LEFT_RIGHT -> C.STEREO_MODE_TOP_BOTTOM
+                    else -> C.STEREO_MODE_MONO
                 }
-                isVrMode = nextMode
             },
             onBack = handleBackAction,
             onRewind10s = {
