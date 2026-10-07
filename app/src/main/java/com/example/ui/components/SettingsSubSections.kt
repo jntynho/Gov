@@ -26,8 +26,6 @@ import com.example.ui.theme.LocalVaultPalette
 fun SettingsMainMenu(
     modifier: Modifier = Modifier,
     currentSettings: SettingsEntity,
-    updateChannel: String = "Beta",
-    onOpenUpdateChannel: () -> Unit = {},
     onNavigateTo: (SettingsSection) -> Unit
 ) {
     val palette = LocalVaultPalette.current
@@ -119,33 +117,7 @@ fun SettingsMainMenu(
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        SettingsSectionHeader(text = "ABOUT")
-
-        GroupedCard {
-            SettingsRow(
-                title = "Update channel",
-                subtitle = if (updateChannel == "Beta") "Early updates (Beta)" else "Intended for everyday use (Stable)",
-                trailing = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = updateChannel,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = accent
-                        )
-                        SettingsNavigationChevron()
-                    }
-                },
-                onClick = onOpenUpdateChannel
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         Text(
             text = "Goony • Version 1.0.0 (Build 42)",

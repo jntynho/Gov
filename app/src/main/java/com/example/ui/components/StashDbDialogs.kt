@@ -32,6 +32,7 @@ fun StashBatchSaveProgressDialog(
     savedWithTorrentsCount: Int,
     onCancel: () -> Unit
 ) {
+    val isLight = isAppLightTheme()
     val palette = LocalVaultPalette.current
     val accent = LocalAccentColor.current
 
@@ -146,6 +147,7 @@ fun StashBlockStudioDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isLight = isAppLightTheme()
     val palette = LocalVaultPalette.current
 
     AlertDialog(

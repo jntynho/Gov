@@ -22,6 +22,11 @@ import com.example.ui.theme.LocalVaultPalette
 val VaultDialogShape = RoundedCornerShape(26.dp)
 
 /**
+ * Modern dark dialog background color (#1A1F25)
+ */
+val VaultDialogContainerColor = Color(0xFF1A1F25)
+
+/**
  * Renders an ultra-subtle, high-end fading frame border (إطار متلاشي) around dialogs.
  * 
  * 1. Base color: Pure White in Dark themes, pure Black in Light theme, matching the reference image.

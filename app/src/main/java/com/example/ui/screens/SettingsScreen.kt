@@ -58,8 +58,6 @@ fun SettingsScreen(
     var rdKey by remember(currentSettings) { mutableStateOf(currentSettings.realDebridApiKey) }
     var stashDbKey by remember(currentSettings) { mutableStateOf(currentSettings.stashDbApiKey) }
     var showStashDbKey by remember { mutableStateOf(false) }
-    var showUpdateChannelDialog by remember { mutableStateOf(false) }
-    var updateChannel by remember { mutableStateOf("Beta") }
 
     var sampleDataStatus by remember { mutableStateOf("") }
     val initialSection = remember {
@@ -168,8 +166,6 @@ fun SettingsScreen(
                                 .padding(top = padding.calculateTopPadding())
                                 .verticalScroll(rememberScrollState()),
                             currentSettings = currentSettings,
-                            updateChannel = updateChannel,
-                            onOpenUpdateChannel = { showUpdateChannelDialog = true },
                             onNavigateTo = { navigateToSection(it) }
                         )
                     }
@@ -395,13 +391,5 @@ fun SettingsScreen(
                     )
             )
         }
-    }
-
-    if (showUpdateChannelDialog) {
-        UpdateChannelDialog(
-            selectedChannel = updateChannel,
-            onChannelSelected = { updateChannel = it },
-            onDismiss = { showUpdateChannelDialog = false }
-        )
     }
 }
